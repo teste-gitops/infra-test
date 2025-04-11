@@ -33,10 +33,22 @@ jobs:
           git commit -m "Update Helm chart version to ${{ github.event.client_payload.new_version }}"
           git push origin $BRANCH
 
-      - name: Criar Pull Request
-        uses: peter-evans/create-pull-request@v5
+      - uses: actions/create-github-app-token@v1
+        id: app-token
         with:
-          title: "Atualiza Helm chart para ${{ github.event.client_payload.new_version }}"
-          body: "PR automático via repository_dispatch"
-          branch: ${{ steps.branch.outputs.branch }}
-          base: main
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            ansible-test
+            infra-test
+      - name: Create repository dispatch event
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api repos/teste-gitops/infra-test/pulls \
+          --method POST \
+          --field title='Atualiza versão do Helm' \
+          --field head="update-helm-${{ github.event.client_payload.new_version }}" \
+          --field base='main' \
+          --field body='Essa PR atualiza a versão do Helm no Chart.yaml.'
