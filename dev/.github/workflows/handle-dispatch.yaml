@@ -1,41 +1,45 @@
 # .github/workflows/handle-dispatch.yaml
-name: Atualiza Chart.yaml ao receber trigger
+name: Receber atualização de Chart.yaml
 
 on:
   repository_dispatch:
     types: [update-helm-version]
 
-jobs:
-  update-chart:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+permissions:
+  contents: write
+  pull-requests: write
 
+jobs:
+  update:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout do repositório de infra
         uses: actions/checkout@v3
 
-      - name: Configurar git
+      - name: Configurar Git
         run: |
-          git config user.name github-actions[bot]
-          git config user.email github-actions[bot]@users.noreply.github.com
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Criar branch e atualizar Chart.yaml
+      - name: Criar branch e atualizar versão
         run: |
-          BRANCH="update-helm-${{ github.event.client_payload.new_version }}"
+          VERSION=${{ github.event.client_payload.new_version }}
+          FILE=${{ github.event.client_payload.chart_path }}
+          BRANCH="update-helm-$VERSION"
+
           git checkout -b $BRANCH
 
-          sed -i "s/^version: .*/version: ${{ github.event.client_payload.new_version }}/" "${{ github.event.client_payload.chart_path }}"
+          sed -i "s/^version: .*/version: $VERSION/" "$FILE"
 
-          git add "${{ github.event.client_payload.chart_path }}"
-          git commit -m "Update Helm chart version to ${{ github.event.client_payload.new_version }}"
+          git add "$FILE"
+          git commit -m "chore: update chart version to $VERSION"
           git push origin $BRANCH
 
       - name: Criar Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          title: "Atualiza Helm chart para ${{ github.event.client_payload.new_version }}"
-          body: "PR automático via repository_dispatch"
-          branch: ${{ steps.branch.outputs.branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Atualiza Chart.yaml para versão ${{ github.event.client_payload.new_version }}"
+          body: "Este PR atualiza o Chart para a versão `${{ github.event.client_payload.new_version}`"
+          branch: "update-helm-${{ github.event.client_payload.new_version }}"
           base: main
