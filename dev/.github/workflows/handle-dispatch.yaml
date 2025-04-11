@@ -1,0 +1,41 @@
+# .github/workflows/handle-dispatch.yaml
+name: Atualiza Chart.yaml ao receber trigger
+
+on:
+  repository_dispatch:
+    types: [update-helm-version]
+
+jobs:
+  update-chart:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configurar git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+
+      - name: Criar branch e atualizar Chart.yaml
+        run: |
+          BRANCH="update-helm-${{ github.event.client_payload.new_version }}"
+          git checkout -b $BRANCH
+
+          sed -i "s/^version: .*/version: ${{ github.event.client_payload.new_version }}/" "${{ github.event.client_payload.chart_path }}"
+
+          git add "${{ github.event.client_payload.chart_path }}"
+          git commit -m "Update Helm chart version to ${{ github.event.client_payload.new_version }}"
+          git push origin $BRANCH
+
+      - name: Criar Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "Atualiza Helm chart para ${{ github.event.client_payload.new_version }}"
+          body: "PR automático via repository_dispatch"
+          branch: ${{ steps.branch.outputs.branch }}
+          base: main
