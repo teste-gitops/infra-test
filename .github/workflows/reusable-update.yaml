@@ -1,5 +1,5 @@
 # .github/workflows/reusable-update.yaml
-name: Atualizar Helm Chart
+name: Atualiza Chart.yaml (reutilizável)
 
 on:
   workflow_call:
@@ -19,20 +19,30 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Clonar repositório de infra
+        uses: actions/checkout@v3
+        with:
+          repository: euprogramador/infra-test
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
 
-      - name: Atualiza chart
+      - name: Atualizar Chart.yaml e criar PR
         run: |
-          BRANCH="update-helm-${{ inputs.new_version }}"
-          git checkout -b $BRANCH
-          sed -i "s/^version: .*/version: ${{ inputs.new_version }}/" "${{ inputs.chart_path }}"
+          VERSION="${{ inputs.new_version }}"
+          FILE="${{ inputs.chart_path }}"
+          BRANCH="update-chart-$VERSION"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "Update chart version"
-          git push origin $BRANCH
+          git checkout -b "$BRANCH"
+          sed -i "s/^version: .*/version: $VERSION/" "$FILE"
+          git add "$FILE"
+          git commit -m "Atualiza Chart para versão $VERSION"
+          git push origin "$BRANCH"
 
       - uses: peter-evans/create-pull-request@v5
         with:
-          branch: ${{ github.ref_name }}
-          title: "Atualiza para versão ${{ inputs.new_version }}"
-          body: "PR automático"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "update-chart-${{ inputs.new_version }}"
+          title: "Atualiza Chart para versão ${{ inputs.new_version }}"
+          body: "PR automático via workflow_call"
