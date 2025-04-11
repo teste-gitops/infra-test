@@ -48,7 +48,7 @@ jobs:
         run: |
           gh api repos/teste-gitops/infra-test/pulls \
           --method POST \
-          --field title='Atualiza versão do Helm' \
+          --field title='Atualiza versão da app: ${{ github.event.client_payload.new_version }}' \
           --field head="update-helm-${{ github.event.client_payload.new_version }}" \
           --field base='main' \
-          --field body='Essa PR atualiza a versão do Helm no Chart.yaml.'
+          --field body='Atualização da versão da aplicação para ${{ github.event.client_payload.new_version }}'
